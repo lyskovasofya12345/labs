@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+        }
+        #wrapper {
+            position: relative;
+        }
+        #send {
+            width: 100%;
+            position: fixed;
+            height: 60px;
+            display: flex;
+            bottom: 0;
+        }
+        #send_message {
+            background-color: rgb(56,79,56);
+            width: 150px;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        #message {
+            font-size: 20px;
+            line-height: 60px;
+            width: inherit;
+        }
+        .message {
+            padding: 10px;
+            margin: 10px;
+            border-radius: 10px;
+            width: fit-content;
+        }
+        .me {
+            background-color: #7282bf;
+            border: 1px solid #261591;
+            color: white;
+            align-self: flex-end;
+        }
+        .friend {
+            background-color: #ccc;
+            border: 1px solid #999;
+        }
+        #chat {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: end;
+            margin-bottom: 60px;
+        }
+        .author {
+            display: block;
+            font-weight: bold;
+            padding-bottom: 10px;
+            font-size: large;
+            text-decoration: underline;
+        }
+        .time {
+            font-size: x-small;
+            display: block;
+            padding-top: column;
+            justify-content: end;
+        }
+    </style>
+
+    
+    </script>
+</head>
+<body>
+    <div id="wrapper">
+        <div id="chat">
+            <div class = "message friend">
+                <span class="author">Маша</span>
+                <span class="text">Salut</span>
+                <span class="time">12:35:54</span>
+            </div>
+
+            <div class = "message me">
+                    <span class="text">Salut</span>
+                    <span class="time">12:35:54</span>
+    
+            </div>
+
+            <div class = "message friend">
+                        <span class="author">Петя</span>
+                        <span class="text">hello</span>
+                        <span class="time">12:35:54</span>
+        
+            </div>
+        <div id="send">
+            <input type="text" id="message">
+            <input type="button" value="Отправить" id="send_message">
+        </div>
+    </div>
+    <script>
+        const author = 'sonya';
+        function newMessage(id, message, author = undefined, time = undefined) {
+            let div = document.createElement('div');
+            div.id = 'message-' + id;
+            if (author !==undefined) {
+                div.className = 'message friend';
+            } else {
+                div.className = 'message me';
+            }
+            let authorSpan;
+            let textSpan;
+            let timeSpan;
+            if (author !== undefined) {
+                authorSpan = document.createElement('span');
+                authorSpan.className = 'author';
+                authorSpan.innerHTML = author;
+                div.appendChild(authorSpan);
+            }
+            textSpan = document.createElement('span');
+            textSpan.className = 'text';
+            textSpan.innerHTML = message;
+            div.appendChild(textSpan);
+
+            timeSpan = document.createElement('span');
+            textSpan.className = 'author';
+            let date;
+            if (time !== undefined) {
+                date = new Date(time * 1000);
+            } else {
+                date = new Date();
+            }
+            timeSpan.innerHTML = `
+                ${date.getHours()}:
+                ${date.getMinutes() < 10 ? '0'+ date.getMinutes() :
+            date.getMinutes()}:
+                ${date.getSeconds() < 10 ? '0'+ date.getSeconds() : 
+            date.getSeconds()}:
+            ` ;
+            div.appendChild(timeSpan);
+            document.querySelector('#chat').appendChild(div);
+            window.scrollTo( {
+                top: Math.ceil(document.querySelector('#chat').scrollHeight),
+                behavior: 'smooth',
+            });
+            //div.className = 'message';
+            //div.innerHTML = text;
+            //document.querySelector('#chat').appendChild(div);
+        }
+
+        function sendMessage () {
+            let text = document.querySelector('#message').value;
+            if (text.trim().length > 0) {
+                sendMessageToServer(text,author);
+                document.querySelector('#message').value = '';
+            }
+        }
+
+        function sendMessageKeyUp (e) {
+            if (e.code === 'Enter') {
+                sendMessage();
+            }
+        }
+        function sendMessageToServer(message, author) {
+            let xmlhttp = new XMLHttpRequest();
+            let url = 'http://chat.9pr.ru/message';
+            xmlhttp.open('POST', url);
+            xmlhttp.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+            let send = {
+                'author': author,
+                'message': message,
+            };
+            xmlhttp.send(JSON.stringify(send));
+            xmlhttp.onload = () => {
+                let data = xmlhttp.responseText;
+                data = JSON.parse(data);
+                if (data.error !== undefined) {
+                    console.log('Ошибка отправки:'+data.error)
+                } else {
+                    newMessage(data.id, message);
+                }
+
+            }
+        }
+        function getMessageFromServer() {
+            let xmlhttp = new XMLHttpRequest();
+            let url = 'http://chat.9pr.ru/message/' + (localStorage.getItem('time')-5);
+            xmlhttp.open('GET', url);
+            xmlhttp.send(null);
+            xmlhttp.onload = () => {
+                let data = xmlhttp.responseText;
+                data = JSON.parse(data);
+                console.log(data);
+                if (data.error !== undefined) {
+                    console.log('Ошибка отправки:'+data.error)
+                } else {
+                    for(let i in data)
+                    {
+                        if(document.querySelector('#message-'+data[i].id) == null) {
+                            newMessage(data[i].id, data[i].message, data[i].author, data[i].time);
+                        }
+
+                    };
+                }
+
+            }
+            localStorage.setItem('time', Math.floor(Date.now()/1000));
+        }
+        window.onload = () => {
+            localStorage.setItem('time', Math.floor(Date.now()/1000));
+            document.querySelector('#send_message').onclick = sendMessage;
+            document.querySelector('#message').onkeyup = sendMessageKeyUp;
+            getMessageFromServer();
+            setInterval(
+                () => {
+                    getMessageFromServer()
+                }, 5000
+            );
+        }
+        </script>
+</body>
+</html>
